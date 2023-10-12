@@ -1,17 +1,64 @@
-'use strict';
+"use strict";
 
-const express = require('express');
+// Variables & imports
+const express = require("express");
+const http = require("http");
+const https = require("https");
 const app = express();
 const fs = require("fs");
 const dayjs = require("dayjs");
-const relativeTime = require('dayjs/plugin/relativeTime')
+const relativeTime = require("dayjs/plugin/relativeTime")
 
-dayjs.extend(relativeTime)
-app.set("port", process.env.PORT || 4000);
+// Functions
+function writeFile(data) {
+   const date = dayjs();
+   const formatted = date.format("HHmmss-DDMMYYYY");
+
+   if (!fs.existsSync("data")) {
+      fs.mkdirSync("data");
+   }
+
+   fs.writeFileSync("data/" + formatted + ".json", JSON.stringify(data));
+}
+
+function cleanFiles() {
+   fs.readdir("data", function (error, files) {
+      if (!error) {
+         files.forEach(function (file) {
+            var fullFile = "data//" + file;
+
+            (fs.stat(fullFile, function (error, stats) {
+               if (!error) {
+                  if (dayjs().diff(dayjs(stats.birthtime), "month") >= 1) {
+                     fs.rm(fullFile, function (error) {
+                        if (!error) {
+                           console.log("Cleaned: " + fullFile)
+                        }
+                        else {
+                           console.log(error);
+                        }
+                     });
+                  }
+               }
+               else {
+                  console.log(error);
+               }
+            }))
+         })
+      }
+      else {
+         console.log(error);
+      }
+   })
+}
+
+// Setup
 app.use(express.json());
+dayjs.extend(relativeTime);
 
 cleanFiles();
 
+// API endpoints
 app.get('/', function (req, res) {
    res.writeHead(200, { 'Content-Type': 'application/json' });
    var response = { "response": "This is GET method." }
@@ -57,53 +104,17 @@ app.delete('/', function (req, res) {
    res.end(JSON.stringify(response));
 })
 
-var server = app.listen(app.get("port"), function () {
 
-   var host = server.address().address
-   var port = server.address().port
+// Run
+var options = {
+   key: fs.readFileSync("certs/client-key.pem"),
+   cert: fs.readFileSync("certs/client-cert.pem")
+};
 
-   console.log("Node.js API app listening at http://%s:%s", host, port)
+http.createServer(app).listen(80, function () {
+   console.log("HTTP listening on port %s", 80)
+});
 
-})
-
-function writeFile(data) {
-   const date = dayjs();
-   const formatted = date.format("HHmmss-DDMMYYYY");
-
-   if (!fs.existsSync("data")) {
-      fs.mkdirSync("data");
-   }
-
-   fs.writeFileSync("data\\" + formatted + ".json", JSON.stringify(data));
-}
-
-function cleanFiles() {
-   fs.readdir("data", function (error, files) {
-      if (!error) {
-         files.forEach(function (file) {
-            var fullFile = "data\\" + file;
-
-            (fs.stat(fullFile, function (error, stats) {
-               if (!error) {
-                  if (dayjs().diff(dayjs(stats.birthtime), "month") >= 1) {
-                     fs.rm(fullFile, function (error) {
-                        if (!error) {
-                           console.log("Cleaned: " + fullFile)
-                        }
-                        else {
-                           console.log(error);
-                        }
-                     });
-                  }
-               }
-               else {
-                  console.log(error);
-               }
-            }))
-         })
-      }
-      else {
-         console.log(error);
-      }
-   })
-}
+https.createServer(options, app).listen(443, function () {
+   console.log("HTTPS listening on port %s", 443)
+});
