@@ -12,7 +12,7 @@ const relativeTime = require("dayjs/plugin/relativeTime")
 // Functions
 function writeFile(data) {
    const date = dayjs();
-   const formatted = date.format("HHmmss-DDMMYYYY");
+   const formatted = date.format("YYYYMMDD-HHmmss");
 
    if (!fs.existsSync("data")) {
       fs.mkdirSync("data");
